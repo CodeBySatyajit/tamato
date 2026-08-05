@@ -1,75 +1,112 @@
-import React, { useContext } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import "./Cart.css";
 import { StoreContext } from "../../context/StoreContext";
 import { useNavigate } from "react-router-dom";
 
 const Cart = () => {
-  const { cartItems, food_list, removeFromCart , getTotalCartAmount, url} = useContext(StoreContext);
-  const hasItems = food_list.some((item) => cartItems[item._id] > 0);
+  const { cartItems, food_list, removeFromCart, addToCart, getTotalCartAmount, url, clearFromCart } = useContext(StoreContext);
+  const [promo, setPromo] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoMessage, setPromoMessage] = useState("");
 
   const navigate = useNavigate();
+
+  const items = useMemo(() => food_list.filter((f) => cartItems[f._id] > 0), [food_list, cartItems]);
+  const subtotal = getTotalCartAmount();
+
+  const deliveryFee = appliedPromo === "FREESHIP" ? 0 : (subtotal > 0 ? 2 : 0);
+  const discount = (() => {
+    if (!appliedPromo) return 0;
+    if (appliedPromo === "SAVE10") return subtotal * 0.1;
+    return 0;
+  })();
+
+  const total = Math.max(0, subtotal - discount + deliveryFee);
+
+  const applyPromo = () => {
+    const code = (promo || "").trim().toUpperCase();
+    if (!code) return setPromoMessage("Enter a promo code");
+    if (code === "SAVE10") {
+      setAppliedPromo("SAVE10");
+      setPromoMessage("Applied 10% discount");
+    } else if (code === "FREESHIP") {
+      setAppliedPromo("FREESHIP");
+      setPromoMessage("Free shipping applied");
+    } else {
+      setAppliedPromo(null);
+      setPromoMessage("Invalid promo code");
+    }
+  };
+
+  const hasItems = items.length > 0;
 
   return (
     <div className="cart">
       <div className="cart-items">
         <div className="cart-item-title">
-          <p>Items</p>
+          <p>Item</p>
           <p>Title</p>
           <p>Price</p>
           <p>Quantity</p>
           <p>Total</p>
           <p>Remove</p>
         </div>
-        <br />
         <hr />
-        {!hasItems && <p className="cart-empty">Your cart is empty.</p>}
 
-        {food_list.map((item) => {
-          if (cartItems[item._id] > 0) {
-            return (
-              <div key={item._id} className="cart-item-title cart-items-item">
-                <img src={url + "/images/" + item.image} alt="" />
-                <p>{item.name}</p>
-                <p>${item.price}</p>
-                <p>{cartItems[item._id]}</p>
-                <p>${item.price * cartItems[item._id]}</p>
-                <p onClick={() => removeFromCart(item._id)} className="cross">
-                  x
-                </p>
-              </div>
-            );
-          }
-          return null;
-        })}
+        {!hasItems && <div className="cart-empty">Your cart is empty.</div>}
+
+        {items.map((item) => (
+          <div key={item._id} className="cart-items-item">
+            <div className="cart-item-media">
+              <img src={url + "/images/" + item.image} alt="" />
+            </div>
+            <p className="cart-item-name">{item.name}</p>
+            <p className="cart-item-price">${item.price.toFixed(2)}</p>
+            <div className="cart-item-qty">
+              <button onClick={() => removeFromCart(item._id)} className="qty-btn">-</button>
+              <input readOnly value={cartItems[item._id]} />
+              <button onClick={() => addToCart(item._id)} className="qty-btn">+</button>
+            </div>
+            <p className="cart-item-total">${(item.price * cartItems[item._id]).toFixed(2)}</p>
+            <p className="cart-item-remove" onClick={() => clearFromCart(item._id)}>Remove</p>
+          </div>
+        ))}
       </div>
+
       <div className="cart-bottom">
         <div className="cart-total">
           <h2>Cart Totals</h2>
           <div>
             <div className="cart-total-details">
               <p>Subtotal</p>
-              <p>${getTotalCartAmount()}</p>
+              <p>${subtotal.toFixed(2)}</p>
             </div>
-            <hr />
+            <div className="cart-total-details">
+              <p>Discount</p>
+              <p>-${discount.toFixed(2)}</p>
+            </div>
             <div className="cart-total-details">
               <p>Delivery Fee</p>
-              <p>${getTotalCartAmount() === 0? "0":2}</p>
+              <p>${deliveryFee.toFixed(2)}</p>
             </div>
             <hr />
-            <div className="cart-total-details">
+            <div className="cart-total-details total-row">
               <p>Total</p>
-              <p>${getTotalCartAmount() === 0? "0":getTotalCartAmount() + 2}</p>
+              <p>${total.toFixed(2)}</p>
             </div>
           </div>
-          <button onClick={()=> navigate('/order ')}>PROCEED TO CHECKOUT</button>
+          <button disabled={!hasItems} onClick={() => navigate('/order')}>PROCEED TO CHECKOUT</button>
         </div>
+
         <div className="cart-promocode">
           <div>
-            <p>If you have a promo code, Enter it here</p>
+            <p>If you have a promo code, enter it here</p>
             <div className="cart-promocode-input">
-              <input type="text" placeholder="promo code"/>
-              <button>Submit</button>
+              <input value={promo} onChange={(e) => setPromo(e.target.value)} type="text" placeholder="promo code" />
+              <button onClick={applyPromo}>Apply</button>
             </div>
+            {promoMessage && <p className="promo-message">{promoMessage}</p>}
+            {appliedPromo && <p className="promo-applied">Applied: {appliedPromo}</p>}
           </div>
         </div>
       </div>

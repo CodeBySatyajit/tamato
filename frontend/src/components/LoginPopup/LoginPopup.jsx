@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import "./LoginPopup.css";
 import { assets } from "../../assets/assets";
-import { useContext } from "react";
 import { StoreContext } from "../../context/StoreContext";
 import axios from "axios";
 
@@ -40,6 +39,12 @@ const LoginPopup = ({ setShowLogin }) => {
       alert(response.data.message);
     }
   };
+
+  useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {}
+  }, []);
 
   return (
     <div className="login-popup">
